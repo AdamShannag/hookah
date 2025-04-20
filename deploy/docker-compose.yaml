@@ -1,0 +1,13 @@
+services:
+  hookah:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      CONFIG_PATH: /etc/hookah/config.json
+    volumes:
+      - ./config.json:/etc/hookah/config.json:ro
+    restart: unless-stopped
