@@ -8,6 +8,8 @@ services:
     environment:
       PORT: 3000
       CONFIG_PATH: /etc/hookah/config.json
+      TEMPLATES_PATH: /etc/hookah/templates
     volumes:
       - ./config.json:/etc/hookah/config.json:ro
+      - ./templates:/etc/hookah/templates:ro
     restart: unless-stopped

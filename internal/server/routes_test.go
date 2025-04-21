@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/AdamShannag/hookah/internal/auth"
+	"github.com/AdamShannag/hookah/internal/config"
 	"github.com/AdamShannag/hookah/internal/types"
 	"io"
 	"net/http"
@@ -33,7 +35,7 @@ func TestWebhookHandler_DispatchesToSimulatedEndpoint(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
-		config: &(types.Config{
+		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
 				Auth:         types.Auth{Flow: "none"},
@@ -47,15 +49,15 @@ func TestWebhookHandler_DispatchesToSimulatedEndpoint(t *testing.T) {
 							{
 								Name:        "MockDiscord",
 								EndpointKey: "Webhook-URL",
-								Body: map[string]any{
-									"content": "Issue received",
-								},
+								Body:        "discord.tmpl",
 							},
 						},
 					},
 				},
 			},
-		}),
+		}, map[string]string{
+			"discord.tmpl": getBodyTemplate("Issue received"),
+		}, auth.NewDefault()),
 	}
 
 	reqBody := map[string]any{
@@ -96,7 +98,7 @@ func TestWebhookHandler_DoesNotDispatchWhenConditionFails(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
-		config: &(types.Config{
+		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
 				Auth:         types.Auth{Flow: "none"},
@@ -110,15 +112,15 @@ func TestWebhookHandler_DoesNotDispatchWhenConditionFails(t *testing.T) {
 							{
 								Name:        "MockDiscord",
 								EndpointKey: "Webhook-URL",
-								Body: map[string]any{
-									"content": "Should not be triggered",
-								},
+								Body:        "discord.tmpl",
 							},
 						},
 					},
 				},
 			},
-		}),
+		}, map[string]string{
+			"discord.tmpl": getBodyTemplate("Should not be triggered"),
+		}, auth.NewDefault()),
 	}
 
 	reqBody := map[string]any{
@@ -166,7 +168,7 @@ func TestWebhookHandler_UsesQueryParamsAsHeaders(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
-		config: &(types.Config{
+		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
 				Auth:         types.Auth{Flow: "none"},
@@ -180,15 +182,15 @@ func TestWebhookHandler_UsesQueryParamsAsHeaders(t *testing.T) {
 							{
 								Name:        "MockDiscord",
 								EndpointKey: "Webhook-URL",
-								Body: map[string]any{
-									"content": "Query param test passed",
-								},
+								Body:        "discord.tmpl",
 							},
 						},
 					},
 				},
 			},
-		}),
+		}, map[string]string{
+			"discord.tmpl": getBodyTemplate("Query param test passed"),
+		}, auth.NewDefault()),
 	}
 
 	reqBody := map[string]any{
@@ -213,4 +215,12 @@ func TestWebhookHandler_UsesQueryParamsAsHeaders(t *testing.T) {
 	if receivedPayload["content"] != "Query param test passed" {
 		t.Fatalf("expected payload 'Query param test passed', got: %v", receivedPayload)
 	}
+}
+
+func getBodyTemplate(content string) string {
+	marshal, _ := json.Marshal(map[string]string{
+		"content": content,
+	})
+
+	return string(marshal)
 }

@@ -5,23 +5,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AdamShannag/hookah/internal/auth"
+	"github.com/AdamShannag/hookah/internal/config"
 	"github.com/AdamShannag/hookah/internal/server"
 	"github.com/AdamShannag/hookah/internal/types"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
 
 func main() {
-	config, err := parseConfigFile(os.Getenv("CONFIG_PATH"))
+	templateConfigs, err := parseConfigFile(os.Getenv("CONFIG_PATH"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	srv := server.NewServer(config)
+	templates, err := parseTemplates(os.Getenv("TEMPLATES_PATH"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conf := config.New(templateConfigs, templates, auth.NewDefault())
+
+	srv := server.NewServer(conf)
 	done := make(chan bool, 1)
 	go gracefulShutdown(srv, done)
 
@@ -53,16 +63,34 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	done <- true
 }
 
-func parseConfigFile(filePath string) (*types.Config, error) {
+func parseConfigFile(filePath string) ([]types.Template, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var result types.Config
+	var result []types.Template
 	if err = json.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
-	return &result, nil
+	return result, nil
+}
+
+func parseTemplates(dirPath string) (map[string]string, error) {
+	dir, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read templates directory: %w", err)
+	}
+
+	templates := make(map[string]string)
+	for _, file := range dir {
+		bytes, readErr := os.ReadFile(filepath.Join(dirPath, file.Name()))
+		if readErr != nil {
+			return nil, fmt.Errorf("failed to read file: %w", readErr)
+		}
+		templates[file.Name()] = string(bytes)
+	}
+
+	return templates, nil
 }

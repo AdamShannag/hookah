@@ -8,7 +8,7 @@ import (
 )
 
 func ToMap(tmplStr string, dataSource map[string]any) (map[string]any, error) {
-	tmpl, err := template.New("map-template").Parse(tmplStr)
+	tmpl, err := template.New("map-template").Funcs(funcMap).Parse(tmplStr)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing template: %w", err)
 	}
@@ -24,12 +24,4 @@ func ToMap(tmplStr string, dataSource map[string]any) (map[string]any, error) {
 	}
 
 	return result, nil
-}
-
-func ToString(m map[string]any) (string, error) {
-	b, err := json.Marshal(m)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal map: %w", err)
-	}
-	return string(b), nil
 }

@@ -1,0 +1,19 @@
+{
+  "username": "{{title .user.username }}",
+  "avatar_url": "{{ .user.avatar_url }}",
+  "content": "today is {{format now "2006-01-02"}}",
+  "embeds": [
+    {
+      "author": {
+        "name": "{{upper  .user.username }}",
+        "icon_url": "{{ .user.avatar_url }}"
+      },
+      "title": "{{ .object_attributes.title }}",
+      "description": "{{ .user.name }} {{pastTense .object_attributes.action }} a merge request in [{{ .project.path_with_namespace }}]({{ .project.web_url }})",
+      "color": 15258703,
+      "footer": {
+        "text": "{{format (parseTime .object_attributes.updated_at "2006-01-02T15:04:05Z07:00") "2006-01-02"}}"
+      }
+    }
+  ]
+}
