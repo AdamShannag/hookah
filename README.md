@@ -4,28 +4,14 @@
 between webhook sources (like GitLab, GitHub, etc.) and target destinations (such as Discord), forwarding events only
 when they match predefined conditions.
 
----
-
-Roadmap
-------
-
-- [ ] Add example configuration files for each `auth.flow`:
-    - [ ] `none`
-    - [ ] `plain secret`
-    - [ ] `basic auth`
-    - [ ] `gitlab`
-    - [ ] `github`
-- [ ] Implement utility helper functions for the template engine:
-    - [ ] Get current date
-    - [ ] Format dates
-    - [ ] Add appropriate suffixes (`-d` or `-ed`) to words
-
 Features
 ------
 
 - **Webhook Receiver:** Accepts incoming webhooks from various platforms.
 - **Rule Engine:** Applies filters based on request headers/url query params and body content.
 - **Conditional Forwarding:** Sends a message to a target webhook only if the rules match.
+- **Reusable Templates:** Define multiple templates and reuse them across different configurations and webhook
+  scenarios.
 - **Template Support:** Allows dynamic message generation using data from the incoming webhook payload.
 - **Lightweight & Extensible:** Simple design with future support for multiple rules, formats, and targets.
 
@@ -36,6 +22,7 @@ The server requires the following environment variables:
 
 - `PORT`: the port on which the server should listen (e.g., `8080`)
 - `CONFIG_PATH`: path to the JSON config file defining receivers and rules
+- `TEMPALTES_PATH`: path to the templates directory that contains all templates
 
 Endpoint Structure
 ------
@@ -79,24 +66,7 @@ and how they work.
           {
             "name": "discord",
             "endpoint_key": "x-discord-url",
-            "body": {
-              "username": "{{ .user.username }}",
-              "avatar_url": "{{ .user.avatar_url }}",
-              "embeds": [
-                {
-                  "author": {
-                    "name": "{{  .user.username }}",
-                    "icon_url": "{{ .user.avatar_url }}"
-                  },
-                  "title": "{{ .object_attributes.title }}",
-                  "description": "{{ .user.name }} {{ .object_attributes.action }} a merge request in [{{ .project.path_with_namespace }}]({{ .project.web_url }})",
-                  "color": 15258703,
-                  "footer": {
-                    "text": "Woah! So cool! :smirk:"
-                  }
-                }
-              ]
-            }
+            "body": "discord.tmpl"
           }
         ]
       }
@@ -112,6 +82,24 @@ Hookah uses a JSON array of receiver configurations. Each configuration defines:
 - **Authentication:** rules for verifying webhook authenticity (`auth` block).
 - **Event routing rules:** Defines how to extract event types and which hooks to trigger when conditions are met.
 
+### Multiple Receivers
+
+The configuration supports **multiple receivers** — each with its own auth rules, event types, and hook logic. This
+enables you to route webhooks from different sources independently:
+
+```json
+[
+  {
+    "receiver": "gitlab",
+    ...
+  },
+  {
+    "receiver": "github",
+    ...
+  }
+]
+```
+
 ### Event Type Resolution
 
 ```json
@@ -126,7 +114,23 @@ These two keys tell Hookah **where to look** for the event type:
 
 Hookah will match the extracted event type against the entries in the `events` array.
 
----
+### Authentication (`auth`)
+
+Each receiver must define an `auth` block to control who can send webhooks. The supported flows are:
+
+| Flow           | Description                                                                                                                    |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------|
+| `none`         | No authentication; accepts all requests.                                                                                       |
+| `plain secret` | Matches the value in the request header against the configured `secret`.                                                       |
+| `basic auth`   | Verifies username and password in basic auth header matches the `secret`, in the format `username:password`.                   |
+| `gitlab`       | Compares the configured `secret` with the GitLab token header using constant-time comparison (SHA-512).                        |
+| `github`       | Verifies HMAC SHA-256 signature in a header (e.g. X-Hub-Signature-256 or custom) using the configured secret and request body. |
+
+**Fields:**
+
+- `flow`: One of `gitlab`, `github`, `basic auth`, `plain secret`, or `none`.
+- `header_secret_key`: The header to extract the token from (e.g., `X-Gitlab-Token` or `X-Custom-Token`).
+- `secret`: The expected secret value (or in `basic auth`, the `username:password` pair).
 
 ### Events & Conditional Hooks
 
@@ -154,72 +158,6 @@ Each event:
 You can define **multiple hooks** per event to notify different targets like Discord, Slack, etc. All matching hooks
 will be triggered concurrently when conditions are satisfied.
 
----
-
-### Hook Structure & Templating
-
-Each `hook` can look like this:
-
-```json
-{
-  "name": "discord",
-  "endpoint_key": "x-discord-url",
-  "body": {
-    "username": "{{ .user.name }}",
-    "content": "Merge request received by {{ .project.name }}"
-  }
-}
-```
-
-- `endpoint_key`: Specifies the request header key, or the url query param that contains the **target webhook URL**.
-  this will be used to make the webhook request for the target hook.
-- `body`: The payload to send to the target. **All fields Support Go-style templating.**
-
-You can reference values from the original request body using `{{ .some.path }}`.  
-For example, `.user.name` is available if GitLab includes `user.name` in its payload.
-
----
-
-### Multiple Receivers
-
-The configuration supports **multiple receivers** — each with its own auth rules, event types, and hook logic. This
-enables you to route webhooks from different sources independently:
-
-```json
-[
-  {
-    "receiver": "gitlab",
-    ...
-  },
-  {
-    "receiver": "github",
-    ...
-  }
-]
-```
-
----
-
-### Authentication (`auth`)
-
-Each receiver must define an `auth` block to control who can send webhooks. The supported flows are:
-
-| Flow           | Description                                                                                                                    |
-|----------------|--------------------------------------------------------------------------------------------------------------------------------|
-| `none`         | No authentication; accepts all requests.                                                                                       |
-| `plain secret` | Matches the value in the request header against the configured `secret`.                                                       |
-| `basic auth`   | Verifies username and password in basic auth header matches the `secret`, in the format `username:password`.                   |
-| `gitlab`       | Compares the configured `secret` with the GitLab token header using constant-time comparison (SHA-512).                        |
-| `github`       | Verifies HMAC SHA-256 signature in a header (e.g. X-Hub-Signature-256 or custom) using the configured secret and request body. |
-
-**Fields:**
-
-- `flow`: One of `gitlab`, `github`, `basic auth`, `plain secret`, or `none`.
-- `header_secret_key`: The header to extract the token from (e.g., `X-Gitlab-Token` or `X-Custom-Token`).
-- `secret`: The expected secret value (or in `basic auth`, the `username:password` pair).
-
----
-
 ### Condition Syntax
 
 Conditions use a simple templated language:
@@ -238,7 +176,53 @@ This checks whether the value of `x-gitlab-label` header or url query param exis
 incoming body
 array `object_attributes.labels`.
 
----
+### Hook Structure & Templating
+
+Each `hook` can look like this:
+
+```json
+{
+  "name": "discord",
+  "endpoint_key": "x-discord-url",
+  "body": "template_file_name.some_extension"
+}
+```
+
+- `endpoint_key`: Specifies the request header key, or the url query param that contains the **target webhook URL**.
+  this will be used to make the webhook request for the target hook.
+- `body`: The name of the template file to use, from the templates' directory.
+
+> Note: After rendering, the template content must result in a well-formed JSON payload, as it will be used in outgoing
+> webhook requests.
+
+### Template Usage
+
+In the template files located in the `templates` directory, you can use Go's native templating language.
+
+You may reference values from the original request body using dot notation like `{{ .some.path }}`.  
+For example, if the incoming payload contains a field `user.name`, you can access it in your template as:
+
+```gohtml
+{{ .user.name }}
+```
+
+### Built-in Template Functions
+
+Your templates also support the following built-in utility functions:
+
+| Function    | Description                                                                                                     |
+|-------------|-----------------------------------------------------------------------------------------------------------------|
+| `now`       | Returns the current time.                                                                                       |
+| `format`    | Formats a `time.Time` object using Go's time layout. Example: `{{ format now "2006-01-02" }}`                   |
+| `parseTime` | Parses a string into a `time.Time` using the given layout. Example: `{{ parseTime "2023-01-01" "2006-01-02" }}` |
+| `pastTense` | Appends `-ed` or `-d` to a word to form the past tense. Example: `{{ pastTense "open" }}` → `opened`            |
+| `lower`     | Converts a string to lowercase. Example: `{{ lower "HELLO" }}` → `hello`                                        |
+| `upper`     | Converts a string to uppercase. Example: `{{ upper "hello" }}` → `HELLO`                                        |
+| `title`     | Converts a string to title case. Example: `{{ title "hello world" }}` → `HELLO WORLD`                           |
+| `trim`      | Trims leading and trailing whitespace. Example: `{{ trim "  hello  " }}` → `hello`                              |
+| `contains`  | Checks if a string contains a substring. Example: `{{ contains "hello world" "world" }}` → `true`               |
+| `replace`   | Replaces all occurrences of a substring. Example: `{{ replace "hello world" "world" "Go" }}` → `hello Go`       |
+| `default`   | Returns a fallback value if the input is empty or nil. Example: `{{ default .user.name "Guest" }}`              |
 
 Running with Docker Compose
 ------
@@ -277,6 +261,7 @@ curl -X POST http://localhost:3000/webhooks/gitlab?discord-url=your_discord_webh
     },
     "object_attributes": {
       "title": "MS-Viewport",
+      "updated_at": "2013-12-03T17:23:34Z",
       "labels": [
         {
           "title": "API",

@@ -25,7 +25,7 @@ func (s *Server) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates := s.config.GetTemplates(receiver, r, payload)
+	templates := s.config.GetConfigTemplates(receiver, r, payload)
 
 	if len(templates) == 0 {
 		w.WriteHeader(http.StatusOK)
@@ -39,7 +39,7 @@ func (s *Server) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tmpl := range templates {
-		go handleTemplate(tmpl, r.Header, request)
+		go s.handleTemplate(tmpl, r.Header, request)
 	}
 
 	w.WriteHeader(http.StatusOK)

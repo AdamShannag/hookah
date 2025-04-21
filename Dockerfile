@@ -11,6 +11,7 @@ WORKDIR /app
 
 ENV PORT=3000
 ENV CONFIG_PATH=/etc/hookah/config.json
+ENV TEMPLATES_PATH=/etc/hookah/templates
 
 COPY --from=build /app/hookah /app/hookah
 

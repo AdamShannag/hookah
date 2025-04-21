@@ -11,7 +11,7 @@ import (
 	"net/http"
 )
 
-func handleTemplate(tmpl types.TemplateConfig, headers http.Header, body map[string]any) {
+func (s *Server) handleTemplate(tmpl types.Template, headers http.Header, body map[string]any) {
 	eventType, err := extractEventType(tmpl, headers, body)
 	if err != nil {
 		log.Printf("[Template] %v", err)
@@ -25,11 +25,48 @@ func handleTemplate(tmpl types.TemplateConfig, headers http.Header, body map[str
 	}
 
 	for _, evt := range events {
-		go processEvent(evt, headers, body)
+		go s.processEvent(evt, headers, body)
 	}
 }
 
-func extractEventType(tmpl types.TemplateConfig, headers http.Header, body map[string]any) (string, error) {
+func (s *Server) processEvent(evt types.Event, headers http.Header, body map[string]any) {
+	ok, err := condition.Evaluate(evt.Conditions, headers, body)
+	if err != nil {
+		log.Printf("[Condition] Evaluation error: %v", err)
+		return
+	}
+	if !ok {
+		log.Println("[Condition] Not met, skipping event")
+		return
+	}
+
+	for _, hook := range evt.Hooks {
+		go s.triggerHook(hook, body, headers)
+	}
+}
+
+func (s *Server) triggerHook(hook types.Hook, body map[string]any, headers http.Header) {
+	templateStr := s.config.GetTemplate(hook.Body)
+
+	payload, err := render.ToMap(templateStr, body)
+	if err != nil {
+		log.Printf("[Render] Failed to parse rendered template to map (%s): %v", hook.Name, err)
+		return
+	}
+
+	url := headers.Get(hook.EndpointKey)
+	if url == "" {
+		log.Printf("[Webhook] URL not found in header for key: %s", hook.EndpointKey)
+		return
+	}
+
+	log.Printf("[Webhook] Triggering: %s", hook.Name)
+	if err = postJSON(url, payload); err != nil {
+		log.Printf("[Webhook] Failed to send request (%s): %v", hook.Name, err)
+	}
+}
+
+func extractEventType(tmpl types.Template, headers http.Header, body map[string]any) (string, error) {
 	switch tmpl.EventTypeIn {
 	case "header":
 		eventType := headers.Get(tmpl.EventTypeKey)
@@ -49,47 +86,6 @@ func extractEventType(tmpl types.TemplateConfig, headers http.Header, body map[s
 		return eventType, nil
 	default:
 		return "", fmt.Errorf("unknown EventTypeIn value: '%s'", tmpl.EventTypeIn)
-	}
-}
-
-func processEvent(evt types.Event, headers http.Header, body map[string]any) {
-	ok, err := condition.Evaluate(evt.Conditions, headers, body)
-	if err != nil {
-		log.Printf("[Condition] Evaluation error: %v", err)
-		return
-	}
-	if !ok {
-		log.Println("[Condition] Not met, skipping event")
-		return
-	}
-
-	for _, hook := range evt.Hooks {
-		go triggerHook(hook, body, headers)
-	}
-}
-
-func triggerHook(hook types.Hook, body map[string]any, headers http.Header) {
-	templateStr, err := render.ToString(hook.Body)
-	if err != nil {
-		log.Printf("[Render] Failed to convert hook body to string (%s): %v", hook.Name, err)
-		return
-	}
-
-	payload, err := render.ToMap(templateStr, body)
-	if err != nil {
-		log.Printf("[Render] Failed to parse rendered template to map (%s): %v", hook.Name, err)
-		return
-	}
-
-	url := headers.Get(hook.EndpointKey)
-	if url == "" {
-		log.Printf("[Webhook] URL not found in header for key: %s", hook.EndpointKey)
-		return
-	}
-
-	log.Printf("[Webhook] Triggering: %s", hook.Name)
-	if err = postJSON(url, payload); err != nil {
-		log.Printf("[Webhook] Failed to send request (%s): %v", hook.Name, err)
 	}
 }
 

@@ -16,24 +16,12 @@
           {
             "name": "discord",
             "endpoint_key": "discord-url",
-            "body": {
-              "username": "{{ .user.username }}",
-              "avatar_url": "{{ .user.avatar_url }}",
-              "embeds": [
-                {
-                  "author": {
-                    "name": "{{  .user.username }}",
-                    "icon_url": "{{ .user.avatar_url }}"
-                  },
-                  "title": "{{ .object_attributes.title }}",
-                  "description": "{{ .user.name }} {{ .object_attributes.action }} a merge request in [{{ .project.path_with_namespace }}]({{ .project.web_url }})",
-                  "color": 15258703,
-                  "footer": {
-                    "text": "Woah! So cool! :smirk:"
-                  }
-                }
-              ]
-            }
+            "body": "discord.tmpl"
+          },
+          {
+            "name": "discord_simple",
+            "endpoint_key": "discord-url",
+            "body": "discord_simple.tmpl"
           }
         ]
       }

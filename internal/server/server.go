@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/AdamShannag/hookah/internal/types"
+	"github.com/AdamShannag/hookah/internal/config"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,10 +11,10 @@ import (
 
 type Server struct {
 	port   int
-	config *types.Config
+	config *config.Config
 }
 
-func NewServer(config *types.Config) *http.Server {
+func NewServer(config *config.Config) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	newServer := &Server{
 		port:   port,
