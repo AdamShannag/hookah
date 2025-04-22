@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/AdamShannag/hookah/internal/condition"
 	"github.com/AdamShannag/hookah/internal/render"
 	"github.com/AdamShannag/hookah/internal/types"
 	"log"
@@ -30,7 +29,7 @@ func (s *Server) handleTemplate(tmpl types.Template, headers http.Header, body m
 }
 
 func (s *Server) processEvent(evt types.Event, headers http.Header, body map[string]any) {
-	ok, err := condition.Evaluate(evt.Conditions, headers, body)
+	ok, err := s.evaluator.EvaluateAll(evt.Conditions, headers, body)
 	if err != nil {
 		log.Printf("[Condition] Evaluation error: %v", err)
 		return

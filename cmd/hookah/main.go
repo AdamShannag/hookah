@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AdamShannag/hookah/internal/auth"
+	"github.com/AdamShannag/hookah/internal/condition"
 	"github.com/AdamShannag/hookah/internal/config"
+	"github.com/AdamShannag/hookah/internal/resolver"
 	"github.com/AdamShannag/hookah/internal/server"
 	"github.com/AdamShannag/hookah/internal/types"
 	"log"
@@ -31,7 +33,7 @@ func main() {
 
 	conf := config.New(templateConfigs, templates, auth.NewDefault())
 
-	srv := server.NewServer(conf)
+	srv := server.NewServer(conf, condition.NewDefaultEvaluator(resolver.NewPathResolver()))
 	done := make(chan bool, 1)
 	go gracefulShutdown(srv, done)
 

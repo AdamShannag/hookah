@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/AdamShannag/hookah/internal/auth"
+	"github.com/AdamShannag/hookah/internal/condition"
 	"github.com/AdamShannag/hookah/internal/config"
+	"github.com/AdamShannag/hookah/internal/resolver"
 	"github.com/AdamShannag/hookah/internal/types"
 	"io"
 	"net/http"
@@ -35,6 +37,7 @@ func TestWebhookHandler_DispatchesToSimulatedEndpoint(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
+		evaluator: condition.NewDefaultEvaluator(resolver.NewPathResolver()),
 		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
@@ -98,6 +101,7 @@ func TestWebhookHandler_DoesNotDispatchWhenConditionFails(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
+		evaluator: condition.NewDefaultEvaluator(resolver.NewPathResolver()),
 		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
@@ -168,6 +172,7 @@ func TestWebhookHandler_UsesQueryParamsAsHeaders(t *testing.T) {
 	defer mockDiscord.Close()
 
 	testServer := &Server{
+		evaluator: condition.NewDefaultEvaluator(resolver.NewPathResolver()),
 		config: config.New([]types.Template{
 			{
 				Receiver:     "gitlab",
