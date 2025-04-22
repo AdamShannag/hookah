@@ -160,21 +160,68 @@ will be triggered concurrently when conditions are satisfied.
 
 ### Condition Syntax
 
-Conditions use a simple templated language:
+Conditions use a simple and readable templating language:
 
-- `{Header.X-Foo}` refers to a request header/url query param
-- `{Body.foo.bar}` refers to a nested body field
-- `{Body.foo[].bar}` supports iterating over arrays, should be used with the {in} operator
-
-Example:
-
-```json
-"{Header.x-gitlab-label} {in} {Body.object_attributes.labels[].title}"
+```text
+{<left-value>} {<operator>} {<right-value>}
 ```
 
-This checks whether the value of `x-gitlab-label` header or url query param exists in any of the `title` fields in the
-incoming body
-array `object_attributes.labels`.
+Where:
+
+- `{Header.X-Foo}` refers to a request header or query parameter.
+- `{Body.foo.bar}` refers to a nested field in the request body.
+- `{Body.foo[].bar}` performs **array projection** to collect all `.bar` fields from the array `foo`.
+- `{Body.items[0].name}` accesses a specific index in an array.
+
+---
+
+#### Examples
+
+```json
+"{Header.x-user-id} {eq} {Body.user.id}"
+```
+
+Checks if the `x-user-id` header matches `user.id` from the body.
+
+```json
+"{Body.user.age} {ne} {30}"
+```
+
+Checks if `user.age` is not equal to `30`.
+
+```json
+"{Header.x-label} {in} {Body.labels[].title}"
+```
+
+Checks if the value of the `x-label` header exists in any of the `title` fields in the `labels` array.
+
+```json
+"{Body.username} {startsWith} {admin_}"
+```
+
+Checks if `username` starts with `"admin_"`.
+
+#### Supported Operators
+
+| Operator       | Description                                                       |
+|----------------|-------------------------------------------------------------------|
+| `{eq}`         | Equal to                                                          |
+| `{ne}`         | Not equal to                                                      |
+| `{in}`         | Left-hand value exists in the right-hand list or array projection |
+| `{notIn}`      | Left-hand value does **not** exist in the right-hand list         |
+| `{contains}`   | Left-hand string contains the right-hand string                   |
+| `{startsWith}` | Left-hand string starts with the right-hand string                |
+| `{endsWith}`   | Left-hand string ends with the right-hand string                  |
+
+#### Array Support
+
+You can access array elements or project fields over entire arrays:
+
+- **Indexed Access**:  
+  `{Body.items[0].name}` — gets the `name` of the first item in the `items` array.
+
+- **Array Projection**:  
+  `{Body.items[].name}` — returns a list of all `name` fields from the `items` array, useful with `{in}` and `{notIn}`.
 
 ### Hook Structure & Templating
 
@@ -197,7 +244,7 @@ Each `hook` can look like this:
 
 ### Template Usage
 
-In the template files located in the `templates` directory, you can use Go's native templating language.
+In the template files located in the `TEMPALTES_PATH` directory, you can use Go's native templating language.
 
 You may reference values from the original request body using dot notation like `{{ .some.path }}`.  
 For example, if the incoming payload contains a field `user.name`, you can access it in your template as:

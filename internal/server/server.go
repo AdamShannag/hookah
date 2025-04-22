@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/AdamShannag/hookah/internal/condition"
 	"github.com/AdamShannag/hookah/internal/config"
 	"net/http"
 	"os"
@@ -10,15 +11,17 @@ import (
 )
 
 type Server struct {
-	port   int
-	config *config.Config
+	port      int
+	config    *config.Config
+	evaluator condition.Evaluator
 }
 
-func NewServer(config *config.Config) *http.Server {
+func NewServer(config *config.Config, evaluator condition.Evaluator) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	newServer := &Server{
-		port:   port,
-		config: config,
+		port:      port,
+		config:    config,
+		evaluator: evaluator,
 	}
 
 	server := &http.Server{
