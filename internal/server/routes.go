@@ -24,6 +24,7 @@ func (s *Server) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
+	payload = escapeEscapedQuotes(payload)
 
 	templates := s.config.GetConfigTemplates(receiver, r, payload)
 

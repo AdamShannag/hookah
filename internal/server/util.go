@@ -8,6 +8,7 @@ import (
 	"github.com/AdamShannag/hookah/internal/types"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func (s *Server) handleTemplate(tmpl types.Template, headers http.Header, body map[string]any) {
@@ -95,4 +96,8 @@ func postJSON(url string, data map[string]any) error {
 	}
 	_, err = http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	return err
+}
+
+func escapeEscapedQuotes(payload []byte) []byte {
+	return []byte(strings.ReplaceAll(string(payload), `\"`, `\\\"`))
 }

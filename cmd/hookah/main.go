@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -86,15 +87,28 @@ func parseTemplates(dirPath string) (map[string]string, error) {
 	}
 
 	templates := make(map[string]string)
-	for _, file := range dir {
-		if file.IsDir() {
+	for _, entry := range dir {
+		name := entry.Name()
+
+		if strings.HasPrefix(name, ".") {
 			continue
 		}
-		bytes, readErr := os.ReadFile(filepath.Join(dirPath, file.Name()))
+
+		fullPath := filepath.Join(dirPath, name)
+
+		info, statErr := os.Stat(fullPath)
+		if statErr != nil {
+			return nil, fmt.Errorf("failed to stat file: %w", err)
+		}
+		if info.IsDir() {
+			continue
+		}
+
+		bytes, readErr := os.ReadFile(fullPath)
 		if readErr != nil {
 			return nil, fmt.Errorf("failed to read file: %w", readErr)
 		}
-		templates[file.Name()] = string(bytes)
+		templates[name] = string(bytes)
 	}
 
 	return templates, nil
