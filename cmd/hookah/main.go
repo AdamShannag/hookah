@@ -87,6 +87,9 @@ func parseTemplates(dirPath string) (map[string]string, error) {
 
 	templates := make(map[string]string)
 	for _, file := range dir {
+		if file.IsDir() {
+			continue
+		}
 		bytes, readErr := os.ReadFile(filepath.Join(dirPath, file.Name()))
 		if readErr != nil {
 			return nil, fmt.Errorf("failed to read file: %w", readErr)
